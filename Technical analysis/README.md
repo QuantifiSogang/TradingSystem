@@ -26,6 +26,7 @@
 - 김준희(컴퓨터공학, 1기) : Software Engineer
 - 심현우(경영학, 2기) : Data Analyst
 - 이재희(경제학, 0기) : Data Analyst
+- 차경환(경제학, 2기) : Data Analyst
 
 ### System Context🌟
 
