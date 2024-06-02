@@ -6,6 +6,7 @@ import numpy as np
 from datetime import datetime
 from plotly.subplots import make_subplots
 import networkx as nx
+from hmmlearn.hmm import GaussianHMM
 import plotly.express as px
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix, roc_curve, auc
@@ -42,6 +43,15 @@ tickers = {
     'Tesla' : 'TSLA',
     'Google' : 'GOOGL',
     'IBM' : 'IBM',
+    'Amazon' : 'AMZN',
+    'NVIDIA' : 'NVDA',
+    'Exxon Mobile' : 'XOM',
+    'Netflix' : 'NFLX',
+    'META' : 'META',
+    'Costco' : 'COST',
+    'Coca-cola' : 'KO',
+    'Samsung' : '005930.KS',
+    'Hyundai' : '005380.KS',
     'Crude oil ETF' : 'USO',
     'Gold ETF' : 'GLD',
     'USA Tresury Bond ETF' : 'BND',
@@ -56,15 +66,14 @@ col1, col2 = st.columns([3, 2])
 with col2:
     ticker = st.selectbox('Pick up your security :', tickers.keys())
     strategy = st.selectbox('Pick up your strategy :', stg)
-
     data = load_data(tickers[ticker])
-
-    upper_barrier = st.number_input('Upper barrier', min_value = 0.0, max_value = 5.0, step = 0.25, value = 2.0)
-    lower_barrier = st.number_input('Lower barrier', min_value = 0.0, max_value = 5.0, step = 0.25, value = 1.0)
-    vert_barrier = st.number_input('Vertical barrier', min_value = 0, max_value = 120, step = 1, value = 7)
     min_ret = st.number_input('Minimum return rate', min_value = 0.0, max_value = 5.0, step = 0.25, value = 3.0)
 
     if strategy == 'Triple barrier' :
+
+        upper_barrier = st.number_input('Upper barrier', min_value=0.0, max_value=5.0, step=0.25, value=2.0)
+        lower_barrier = st.number_input('Lower barrier', min_value=0.0, max_value=5.0, step=0.25, value=1.0)
+        vert_barrier = st.number_input('Vertical barrier', min_value=0, max_value=120, step=1, value=7)
 
         X_train, X_test, y_train, y_test = pipeline(
             tickers[ticker],
@@ -116,6 +125,159 @@ with col2:
 
         st.plotly_chart(signal_fig, use_container_width=True)
 
+    elif strategy == 'Moving Average Strategy' :
+        short_window = st.number_input('Short Window', min_value=1, max_value=60, step=1, value=5)
+        long_window = st.number_input('Long Window', min_value=1, max_value=252, step=1, value=20)
+        X_train, X_test, y_train, y_test = pipeline_moving_average(
+            tickers[ticker],
+            start_date,
+            end_date,
+            short_window,
+            long_window,
+            min_ret * 0.01
+        )
+        # Machine Learning
+
+        forest = RandomForestClassifier(
+            criterion='entropy',
+            class_weight='balanced_subsample',
+            random_state=42,
+            n_estimators=1000,
+            max_features=8,
+            oob_score=True
+        )
+
+        fit = forest.fit(X=X_train, y=y_train)
+
+        y_prob = forest.predict_proba(X_test)[:, 1]
+        y_pred = forest.predict(X_test)
+        fpr, tpr, thresholds = roc_curve(y_test, y_prob)
+        accuracy = accuracy_score(y_test, y_pred)
+
+        st.header("Machine Learning Signal")
+        signal = 'Buy' if y_prob[-1] > 0.5 else 'Sell'
+        st.write(signal)
+
+        signal_fig = go.Figure(go.Indicator(
+            mode="gauge+number",
+            value=y_prob[-1] * 100,
+            title={'text': f"Date: {pd.to_datetime('today')}"},
+            gauge={
+                'axis': {'range': [0, 100]},
+                'bar': {'color': "darkblue"},
+            }
+        )
+        )
+
+        signal_fig.update_layout(
+            height=300,
+            width=400
+        )
+
+        st.plotly_chart(signal_fig, use_container_width=True)
+
+    hmm = yf.download(ticker, start=start_date, end=end_date)
+    features = ['^VIX', tickers[ticker]]
+    exog = yf.download(
+        features,
+        start=start_date,
+        end=end_date
+    )['Adj Close']
+    log_return = exog.pct_change(fill_method=None)
+    log_return.dropna(inplace=True)
+    X_train = log_return[:'2019']
+    X_test = log_return['2020':]
+    n_states = 3
+
+    hmm_model = GaussianHMM(
+        n_components=n_states,
+        covariance_type="full",
+        n_iter=1000,
+        random_state=42
+    )
+    hmm_model.fit(X_train.values)
+    hmm_pred_prob = pd.DataFrame(
+        hmm_model.predict_proba(X_test.values),
+        index=X_test.index,
+        columns=[f'State_{i}' for i in range(n_states)]
+    )
+
+    bull_probability = round(hmm_pred_prob.iloc[-1]['State_0'] * 100, 2)
+    neutral_probability = round(hmm_pred_prob.iloc[-1]['State_1'] * 100, 2)
+    bear_probability = round(hmm_pred_prob.iloc[-1]['State_2'] * 100, 2)
+
+    fig = go.Figure()
+
+    fig.add_trace(
+        go.Bar(
+            y=['Probability'],
+            x=[bull_probability],
+            name='Bull',
+            orientation='h',
+            marker=dict(color='#00CC96', line=dict(width=0.5)),
+            text=[f"{bull_probability}%"],
+            textposition='inside',
+            insidetextanchor='middle',
+            textfont=dict(size=20, color='white')
+        )
+    )
+
+    fig.add_trace(
+        go.Bar(
+            y=['Probability'],
+            x=[neutral_probability],
+            name='Neutral',
+            orientation='h',
+            marker=dict(color='#F4D44D', line=dict(width=0.5)),
+            text=[f"{neutral_probability}%"],
+            textposition='inside',
+            insidetextanchor='middle',
+            textfont=dict(size=20, color='black')
+        )
+    )
+
+    fig.add_trace(
+        go.Bar(
+            y=['Probability'],
+            x=[bear_probability],
+            name='Bear',
+            orientation='h',
+            marker=dict(color='#EF553B', line=dict(width=0.5)),
+            text=[f"{bear_probability}%"],
+            textposition='inside',
+            insidetextanchor='middle',
+            textfont=dict(size=20, color='white')
+        )
+    )
+
+    if bull_probability > bear_probability and bull_probability > neutral_probability:
+        mrkt_sent = 'BULL'
+    elif bear_probability > bull_probability and bear_probability > neutral_probability:
+        mrkt_sent = 'BEAR'
+    else:
+        mrkt_sent = 'NEUTRAL'
+
+    fig.update_layout(
+        title_text=mrkt_sent,
+        barmode='stack',
+        xaxis=dict(
+            range=[0, 100],
+            showgrid=False,
+            zeroline=False,
+            showticklabels=False
+        ),
+        yaxis=dict(
+            showgrid=False,
+            showticklabels=False
+        ),
+        margin=dict(l=20, r=20, t=40, b=20),
+        height=120,
+        width=800,
+        plot_bgcolor='white'
+    )
+
+    st.plotly_chart(fig, use_container_width=True)
+
 data['MA20'] = data['Close'].rolling(window=20).mean()
 data['MA60'] = data['Close'].rolling(window=60).mean()
 
@@ -124,8 +286,14 @@ def calculate_psy(data, window=14):
     up_days = (diff > 0).astype(int)
     psy = up_days.rolling(window=window).sum() / window * 100
     return psy
+def calculate_bollinger_bands(data, window=20, num_std=2):
+    data['MA20'] = data['Close'].rolling(window=window).mean()
+    data['BB_up'] = data['MA20'] + num_std * data['Close'].rolling(window=window).std()
+    data['BB_dn'] = data['MA20'] - num_std * data['Close'].rolling(window=window).std()
+    return data
 
 data['PSY'] = calculate_psy(data)
+data = calculate_bollinger_bands(data)
 
 recent_data = data.iloc[-60:]
 price_range = [recent_data['Low'].min(), recent_data['High'].max()]
@@ -133,15 +301,17 @@ volume_range = [0, recent_data['Volume'].max() * 2]
 
 ################ Visualization ################
 
-fig = make_subplots(rows=3, cols=1, shared_xaxes=True, row_heights = [0.6, 0.2, 0.2], vertical_spacing = 0.03)
+# Create the figure
+fig = make_subplots(rows=3, cols=1, shared_xaxes=True, row_heights=[0.6, 0.2, 0.2], vertical_spacing=0.03)
 
-
+# Add candlestick
 fig.add_trace(go.Candlestick(x=data['Date'],
                              open=data['Open'],
                              high=data['High'],
                              low=data['Low'],
                              close=data['Close'],
                              name='Candlestick'), row=1, col=1)
+# Add moving averages
 fig.add_trace(go.Scatter(x=data['Date'],
                          y=data['MA20'],
                          mode='lines',
@@ -152,28 +322,46 @@ fig.add_trace(go.Scatter(x=data['Date'],
                          mode='lines',
                          name='MA60',
                          line=dict(color='darkorange')), row=1, col=1)
+# Add Bollinger Bands
+fig.add_trace(go.Scatter(x=data['Date'],
+                         y=data['BB_up'],
+                         mode='lines',
+                         name='BB_upper',
+                         line=dict(color='lightgrey')), row=1, col=1)
+fig.add_trace(go.Scatter(x=data['Date'],
+                         y=data['BB_dn'],
+                         mode='lines',
+                         name='BB_lower',
+                         line=dict(color='lightgrey'),
+                         fill='tonexty', fillcolor='rgba(211, 211, 211, 0.2)'), row=1, col=1)  # Fill color
+
+# Add volume
 fig.add_trace(go.Bar(x=data['Date'],
                      y=data['Volume'],
                      name='Volume',
                      marker=dict(color='lightblue')), row=2, col=1)
+# Add PSY
 fig.add_trace(go.Scatter(x=data['Date'],
                          y=data['PSY'],
                          mode='lines',
                          name='PSY',
                          line=dict(color='purple')), row=3, col=1)
+
+# Update layout
 fig.update_layout(title=f'{ticker} Candle Chart',
                   yaxis_title='Price',
                   xaxis_title='Date',
-                  showlegend = True,
-                  height = 800,
-                  autosize = True,
-                  xaxis_rangeslider_visible = False)
+                  showlegend=True,
+                  height=800,
+                  autosize=True,
+                  xaxis_rangeslider_visible=False)
 fig.update_xaxes(range=[recent_data['Date'].iloc[0], recent_data['Date'].iloc[-1]], row=1, col=1)
 fig.update_xaxes(range=[recent_data['Date'].iloc[0], recent_data['Date'].iloc[-1]], row=2, col=1)
 fig.update_xaxes(range=[recent_data['Date'].iloc[0], recent_data['Date'].iloc[-1]], row=3, col=1)
 fig.update_yaxes(range=price_range, row=1, col=1)
 fig.update_yaxes(range=volume_range, row=2, col=1)
 fig.update_yaxes(fixedrange=False, row=1, col=1)
+
 
 with col1:
     st.plotly_chart(fig, use_container_width=True)
@@ -189,7 +377,7 @@ with col1 :
 
     corr = nx_returns.corrwith(nx_stock)
 
-    threshold = 0.6
+    threshold = 0.5
     related_stocks = corr[corr > threshold].index.to_list()
 
     related_returns = nx_returns[related_stocks]
@@ -305,17 +493,9 @@ with col2 :
         st.write("Unable to fetch news. Please try a different method.")
     else:
         news_texts_processed, word_freq = preprocess_text(news_texts, stopwords)
-
-        # Generate the word cloud
         wordcloud = WordCloud(width=800, height=400, background_color='white').generate(news_texts_processed)
-
-        # Extract word cloud data
         words = wordcloud.words_
-
-        # Choose three colors for the word cloud
         colors = ['#1f77b4', '#ff7f0e', '#2ca02c']  # Blue, Orange, Green
-
-        # Visualize the word cloud using Plotly
         word_x = []
         word_y = []
         word_freq_list = []
