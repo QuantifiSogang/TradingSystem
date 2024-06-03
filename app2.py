@@ -24,6 +24,7 @@ import urllib.request
 import ssl
 import json
 import FinanceDataReader as fdr
+import ta
 
 ############################# 패키지 및 모듈 ######################################
 
@@ -371,6 +372,8 @@ fig.update_yaxes(range=volume_range, row=2, col=1)
 fig.update_yaxes(fixedrange=False, row=1, col=1)
 
 
+####################### 주식차트와 종목, 전략설정 아래부분 ###########################
+
 with col1:
     st.plotly_chart(fig, use_container_width=True)
 
@@ -470,6 +473,34 @@ with col1 :
                     )
 
     st.plotly_chart(fig, use_container_width=True)
+
+### 전략사전 
+with col2:
+
+
+    st.title('전략사전: 주식 투자 기술적 분석 전략')
+
+    # Triple Barrier 전략
+    st.header('Triple Barrier Strategy')
+    st.markdown("""
+    Triple Barrier 전략은 가격 목표와 두 개의 정지-손실 수준을 설정하여 투자 결정을 최적화합니다. 이 전략은 위험 관리를 강화하고, 기대 수익을 극대화하는 데 도움을 줍니다.
+    """)
+    #st.image('path_to_triple_barrier_image.png')
+
+    # Moving Average 전략
+    st.header('Moving Average Strategy')
+    st.markdown("""
+    Moving Average 전략은 단순 이동 평균(SMA) 또는 지수 이동 평균(EMA)을 사용하여 추세의 방향을 판단합니다. 이 전략은 추세를 따르는 트레이딩에 매우 유용합니다.
+    """)
+    #st.image('path_to_moving_average_image.png')
+
+    # RSI 전략
+    st.header('RSI Strategy')
+    st.markdown("""
+    RSI (Relative Strength Index) 전략은 과매수 및 과매도 신호를 식별하여 매수 또는 매도 타이밍을 결정합니다. RSI 값이 70을 초과하면 과매수, 30 미만이면 과매도로 간주합니다.
+    """)
+    #st.image
+
 
 with col2 :
 
@@ -604,33 +635,40 @@ with col2 :
     # 단어 구름 생성을 위해 딕셔너리 형태로 변환
     word_freq_dict = dict(keywords)
 
+    # word_freq_dict 내용 출력 (디버깅을 위해)
+    if not word_freq_dict:
+        print("word_freq_dict가 비어 있어서 워드 클라우드를 생성할 수 없습니다.")
+    else:
+        print("word_freq_dict:", word_freq_dict)
+
     # WordCloud 객체 생성
-    wordcloud = WordCloud(font_path='/Library/Fonts/AppleGothic.ttf',  # 한글 폰트 경로
-                        width=800, 
-                        height=400, 
-                        background_color='white').generate_from_frequencies(word_freq_dict)
-    
-    # WordCloud 이미지를 numpy 배열로 변환
-    wordcloud_image = wordcloud.to_array()
+    if word_freq_dict:
+        wordcloud = WordCloud(font_path='/Library/Fonts/AppleGothic.ttf',  # 한글 폰트 경로
+                            width=800, 
+                            height=400, 
+                            background_color='white').generate_from_frequencies(word_freq_dict)
+        
+        # WordCloud 이미지를 numpy 배열로 변환
+        wordcloud_image = wordcloud.to_array()
 
-    # Plotly를 사용하여 이미지 시각화
-    fig = go.Figure(go.Image(z=wordcloud_image),
-                    layout=go.Layout(
-                        title='Today Market Keywords',
-                        titlefont_size=16,
-                        showlegend=False,
-                        hovermode='closest',
-                        width=600,
-                        height=400,
-                        margin_l=0,
-                        margin_r=0,
-                        margin_b=0,
-                        margin_t=50,
-                        xaxis=dict(visible=False),
-                        yaxis=dict(visible=False))
-                    )
+        # Plotly를 사용하여 이미지 시각화
+        fig = go.Figure(go.Image(z=wordcloud_image),
+                        layout=go.Layout(
+                            title='Today Market Keywords',
+                            titlefont_size=16,
+                            showlegend=False,
+                            hovermode='closest',
+                            width=600,
+                            height=400,
+                            margin_l=0,
+                            margin_r=0,
+                            margin_b=0,
+                            margin_t=50,
+                            xaxis=dict(visible=False),
+                            yaxis=dict(visible=False))
+                        )
 
-    st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, use_container_width=True)
 
 ### 
 with col2 :
@@ -849,6 +887,7 @@ with col2 :
 
     wordcloud_display(keywords) 
 
+
 with col1:
     ### KOSPI 100개기업 시총순위별로 사각형크기 나누고 주가와 당일 등락률표시
 
@@ -879,5 +918,6 @@ with col1:
 
     fig = px.treemap(kospi100_df, path=['Sector', 'Name', 'ChagesRatio'], values='Marcap',
                     color='Sector', hover_data=['Marcap'],
-                    color_continuous_scale='Viridis', title="코스피 시장 주식 시각화")
-    st.fig.show()
+                    color_continuous_scale='Viridis', title="KOSPI Market Capitalization")
+    st.plotly_chart(fig, use_container_width=True)
+
