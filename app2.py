@@ -48,8 +48,7 @@ st.title("Meta Trading")
 ### 밑에 한국어 사전에도 추가해주세용!!! --> 뉴스크롤링용
 tickers = {
     'Apple' : 'AAPL',
-    'Micro Soft' : 'MSFT',
-    'Tesla' : 'TSLA',
+    'Microsoft' : 'MSFT',
     'Google' : 'GOOGL',
     'IBM' : 'IBM',
     'Amazon' : 'AMZN',
@@ -59,12 +58,7 @@ tickers = {
     'META' : 'META',
     'Costco' : 'COST',
     'Coca-cola' : 'KO',
-    'Samsung' : '005930.KS',
-    'Hyundai' : '005380.KS',
     'Crude oil ETF' : 'USO',
-    'Gold ETF' : 'GLD',
-    'USA Tresury Bond ETF' : 'BND',
-    'KODEX ETF' : '069500.KS',
     'SPY ETF' : 'SPY',
     'QQQ ETF' : 'QQQ'
 }
@@ -500,7 +494,8 @@ with col2:
         },
         "Moving Average Strategy": {
             "description": """
-            Moving Average 전략은 단순 이동 평균(SMA) 또는 지수 이동 평균(EMA)을 사용하여 추세의 방향을 판단합니다.
+            이중 이동 평균 전략은 주식 가격의 단기 추세와 장기 추세를 비교하여 매수와 매도 신호를 생성하는 간단한 트레이딩 전략입니다.\n
+            이 전략은 주가가 단기 이동 평균선이 장기 이동 평균선을 상향 돌파할 때 매수하고, 단기 이동 평균선이 장기 이동 평균선을 하향 돌파할 때 매도합니다.\n
             이 전략은 추세를 따르는 트레이딩에 매우 유용합니다.
             """,
             "image": "images/639aaf3c2d96d116ed0818215f94f337.jpg"
@@ -754,7 +749,7 @@ with col2 :
 
     translation_dict = {
         'Apple': '애플',
-        'Micro Soft': '마이크로소프트',
+        'Microsoft': '마이크로소프트',
         'Tesla': '테슬라',
         'Google': '구글',
         'IBM': 'IBM',
@@ -764,9 +759,9 @@ with col2 :
         'Netflix': '넷플릭스',
         'META': '메타',
         'Costco': '코스트코',
-        'Coca-Cola': '코카콜라',
-        'Samsung': '삼성전자',
-        'Hyundai': '현대자동차',
+        'Coca-cola': '코카콜라',
+        'Samsung Electronics': '삼성전자',
+        'Hyundai Motors': '현대자동차',
         'Crude oil ETF': '원유',
         'Gold ETF': '금',
         'USA Treasury Bond ETF': '미국국채',
@@ -990,8 +985,8 @@ with col1:
         Korea_rates = pd.DataFrame(rows)
 
         return Korea_rates
-
-    ## 회사채3년(AA-)
+    
+    ## 회사채(A-)
     def get_Company_interest_rate(api_key, start_date, end_date):
         
         url = 'http://ecos.bok.or.kr/api/StatisticSearch/' + api_key + '/json/kr/1/100/[STAT_CODE]/D/YYYYMMDD/YYYYMMDD/[SUB_CODE]'
@@ -1026,27 +1021,234 @@ with col1:
         Company_rates = pd.DataFrame(rows)
 
         return Company_rates
+    
+    ## 원달러환율
+    def get_won_dollar(api_key, start_date, end_date):
+        
+        url = 'http://ecos.bok.or.kr/api/StatisticSearch/' + api_key + '/json/kr/1/100/[STAT_CODE]/D/YYYYMMDD/YYYYMMDD/[SUB_CODE]'
+        
+        url = url.replace("[STAT_CODE]", "731Y001")
+        url = url.replace("YYYYMMDD/YYYYMMDD", start_date + "/" + end_date)
+        url = url.replace("[SUB_CODE]", "0000001")
+
+        response = requests.get(url)
+        result = response.json()
+
+        list_total_count=(int)(result['StatisticSearch']['list_total_count'])
+        list_count=(int)(list_total_count/100) + 1
+
+        rows=[]
+        for i in range(0,list_count):
+            
+            start = str(i * 100 + 1)
+            end = str((i + 1) * 100)
+            
+            url = "http://ecos.bok.or.kr/api/StatisticSearch/" + api_key + "/json/kr/" + start + "/" + end + "/" + "[STAT_CODE]/D/YYYYMMDD/YYYYMMDD/[SUB_CODE]"
+        
+            url = url.replace("[STAT_CODE]", "731Y001")
+            url = url.replace("YYYYMMDD/YYYYMMDD", start_date + "/" + end_date)
+            url = url.replace("[SUB_CODE]", "0000001")
+
+            response = requests.get(url)
+            data = response.json()
+            
+            rows += data['StatisticSearch']['row']
+        
+        won_dollar = pd.DataFrame(rows)
+
+        return won_dollar
+    
+    ## 원위안환율
+    def get_won_qian(api_key, start_date, end_date):
+        
+        url = 'http://ecos.bok.or.kr/api/StatisticSearch/' + api_key + '/json/kr/1/100/[STAT_CODE]/D/YYYYMMDD/YYYYMMDD/[SUB_CODE]'
+        
+        url = url.replace("[STAT_CODE]", "731Y001")
+        url = url.replace("YYYYMMDD/YYYYMMDD", start_date + "/" + end_date)
+        url = url.replace("[SUB_CODE]", "0000053")
+
+        response = requests.get(url)
+        result = response.json()
+
+        list_total_count=(int)(result['StatisticSearch']['list_total_count'])
+        list_count=(int)(list_total_count/100) + 1
+
+        rows=[]
+        for i in range(0,list_count):
+            
+            start = str(i * 100 + 1)
+            end = str((i + 1) * 100)
+            
+            url = "http://ecos.bok.or.kr/api/StatisticSearch/" + api_key + "/json/kr/" + start + "/" + end + "/" + "[STAT_CODE]/D/YYYYMMDD/YYYYMMDD/[SUB_CODE]"
+        
+            url = url.replace("[STAT_CODE]", "731Y001")
+            url = url.replace("YYYYMMDD/YYYYMMDD", start_date + "/" + end_date)
+            url = url.replace("[SUB_CODE]", "0000053")
+
+            response = requests.get(url)
+            data = response.json()
+            
+            rows += data['StatisticSearch']['row']
+        
+        won_qian = pd.DataFrame(rows)
+
+        return won_qian
+    
+    ## 원엔환율
+    def get_won_yen(api_key, start_date, end_date):
+        
+        url = 'http://ecos.bok.or.kr/api/StatisticSearch/' + api_key + '/json/kr/1/100/[STAT_CODE]/D/YYYYMMDD/YYYYMMDD/[SUB_CODE]'
+        
+        url = url.replace("[STAT_CODE]", "731Y001")
+        url = url.replace("YYYYMMDD/YYYYMMDD", start_date + "/" + end_date)
+        url = url.replace("[SUB_CODE]", "0000002")
+
+        response = requests.get(url)
+        result = response.json()
+
+        list_total_count=(int)(result['StatisticSearch']['list_total_count'])
+        list_count=(int)(list_total_count/100) + 1
+
+        rows=[]
+        for i in range(0,list_count):
+            
+            start = str(i * 100 + 1)
+            end = str((i + 1) * 100)
+            
+            url = "http://ecos.bok.or.kr/api/StatisticSearch/" + api_key + "/json/kr/" + start + "/" + end + "/" + "[STAT_CODE]/D/YYYYMMDD/YYYYMMDD/[SUB_CODE]"
+        
+            url = url.replace("[STAT_CODE]", "731Y001")
+            url = url.replace("YYYYMMDD/YYYYMMDD", start_date + "/" + end_date)
+            url = url.replace("[SUB_CODE]", "0000002")
+
+            response = requests.get(url)
+            data = response.json()
+            
+            rows += data['StatisticSearch']['row']
+        
+        won_yen = pd.DataFrame(rows)
+
+        return won_yen
+
+    ## 코스피지수
+    def get_kospi(api_key, start_date, end_date):
+        
+        url = 'http://ecos.bok.or.kr/api/StatisticSearch/' + api_key + '/json/kr/1/100/[STAT_CODE]/D/YYYYMMDD/YYYYMMDD/[SUB_CODE]'
+        
+        url = url.replace("[STAT_CODE]", "802Y001")
+        url = url.replace("YYYYMMDD/YYYYMMDD", start_date + "/" + end_date)
+        url = url.replace("[SUB_CODE]", "0001000")
+
+        response = requests.get(url)
+        result = response.json()
+
+        list_total_count=(int)(result['StatisticSearch']['list_total_count'])
+        list_count=(int)(list_total_count/100) + 1
+
+        rows=[]
+        for i in range(0,list_count):
+            
+            start = str(i * 100 + 1)
+            end = str((i + 1) * 100)
+            
+            url = "http://ecos.bok.or.kr/api/StatisticSearch/" + api_key + "/json/kr/" + start + "/" + end + "/" + "[STAT_CODE]/D/YYYYMMDD/YYYYMMDD/[SUB_CODE]"
+        
+            url = url.replace("[STAT_CODE]", "802Y001")
+            url = url.replace("YYYYMMDD/YYYYMMDD", start_date + "/" + end_date)
+            url = url.replace("[SUB_CODE]", "0001000")
+
+            response = requests.get(url)
+            data = response.json()
+            
+            rows += data['StatisticSearch']['row']
+        
+        kospi = pd.DataFrame(rows)
+
+        return kospi
+    
+    ## 코스닥지수
+    def get_kosdaq(api_key, start_date, end_date):
+        
+        url = 'http://ecos.bok.or.kr/api/StatisticSearch/' + api_key + '/json/kr/1/100/[STAT_CODE]/D/YYYYMMDD/YYYYMMDD/[SUB_CODE]'
+        
+        url = url.replace("[STAT_CODE]", "802Y001")
+        url = url.replace("YYYYMMDD/YYYYMMDD", start_date + "/" + end_date)
+        url = url.replace("[SUB_CODE]", "0089000")
+
+        response = requests.get(url)
+        result = response.json()
+
+        list_total_count=(int)(result['StatisticSearch']['list_total_count'])
+        list_count=(int)(list_total_count/100) + 1
+
+        rows=[]
+        for i in range(0,list_count):
+            
+            start = str(i * 100 + 1)
+            end = str((i + 1) * 100)
+            
+            url = "http://ecos.bok.or.kr/api/StatisticSearch/" + api_key + "/json/kr/" + start + "/" + end + "/" + "[STAT_CODE]/D/YYYYMMDD/YYYYMMDD/[SUB_CODE]"
+        
+            url = url.replace("[STAT_CODE]", "802Y001")
+            url = url.replace("YYYYMMDD/YYYYMMDD", start_date + "/" + end_date)
+            url = url.replace("[SUB_CODE]", "0089000")
+
+            response = requests.get(url)
+            data = response.json()
+            
+            rows += data['StatisticSearch']['row']
+        
+        kosdaq = pd.DataFrame(rows)
+
+        return kosdaq
 
 
     ### 보안유의!!
     api_key = 'C7GJE1C09ADYZNF4MH30'
 
-    # 금리
+    ## 금리
+    # 연초대비 오늘비율
     rate_start_date = "20240101"
-    rate_end_date = "20240531"
+    rate_end_date = "20240604"
     CD_rates = get_CD_interest_rate(api_key, rate_start_date, rate_end_date)
     Korea_rates = get_Korea_interest_rate(api_key, rate_start_date, rate_end_date)
     Company_rates = get_Company_interest_rate(api_key, rate_start_date, rate_end_date)
 
-    ## 금리
-    labels = [CD_rates.iloc[0,3], Korea_rates.iloc[0,3], Company_rates.iloc[0,3]]
-    values = [float(CD_rates.iloc[-1,-1]), float(Korea_rates.iloc[-1,-1]), float(Company_rates.iloc[-1,-1])]
+    ## 환율
+    # 어제대비 오늘비율
+    exchange_start_date = "20240603"
+    exchange_end_date = "20240604"
+    won_dollar = get_won_dollar(api_key, exchange_start_date, exchange_end_date)
+    won_qian = get_won_qian(api_key, exchange_start_date, exchange_end_date)
+    won_yen = get_won_yen(api_key, exchange_start_date, exchange_end_date)
 
-    # 조회한 마지막날짜를 출력하도록 설계 --> datetime.today로 오늘날짜를 출력하도록 할수도 있음
-    dates = [rate_end_date[0:4] + '-' + rate_end_date[4:6] + '-' + rate_end_date[6:]] * 3
+    ## 주식시장
+    # 어제대비 오늘비율
+    exchange_start_date = "20240603"
+    exchange_end_date = "20240604"
+    kospi = get_kospi(api_key, exchange_start_date, exchange_end_date)
+    kosdaq = get_kosdaq(api_key, exchange_start_date, exchange_end_date)
+
+    # 이름과 값들
+    labels = [CD_rates.iloc[0,3], Korea_rates.iloc[0,3], Company_rates.iloc[0,3], 
+              won_dollar.iloc[0,3], won_qian.iloc[0,3], won_yen.iloc[0,3],
+              kospi.iloc[0,3], kosdaq.iloc[0,3]]
+    values = [float(CD_rates.iloc[-1,-1]), float(Korea_rates.iloc[-1,-1]), float(Company_rates.iloc[-1,-1]),
+              float(won_dollar.iloc[-1,-1]), float(won_qian.iloc[-1,-1]), float(won_yen.iloc[-1,-1]),
+              float(kospi.iloc[-1,-1]), float(kosdaq.iloc[-1,-1])]
+    
+    # 조회한 마지막날짜를 출력하도록 설계 
+    dates = [rate_end_date[0:4] + '-' + rate_end_date[4:6] + '-' + rate_end_date[6:]] * 8
+
+    # 변화율
     changes = [(float(CD_rates.iloc[-1,-1]) - float(CD_rates.iloc[-2,-1]))/float(CD_rates.iloc[-2,-1]),
                 (float(Korea_rates.iloc[-1,-1]) - float(Korea_rates.iloc[-2,-1]))/float(Korea_rates.iloc[-2,-1]),
-                (float(Company_rates.iloc[-1,-1]) - float(Company_rates.iloc[-2,-1]))/float(Company_rates.iloc[-2,-1])]
+                (float(Company_rates.iloc[-1,-1]) - float(Company_rates.iloc[-2,-1]))/float(Company_rates.iloc[-2,-1]),
+                (float(won_dollar.iloc[-1,-1]) - float(won_dollar.iloc[-2,-1]))/float(won_dollar.iloc[-2,-1]),
+                (float(won_qian.iloc[-1,-1]) - float(won_qian.iloc[-2,-1]))/float(won_qian.iloc[-2,-1]),
+                (float(won_yen.iloc[-1,-1]) - float(won_yen.iloc[-2,-1]))/float(won_yen.iloc[-2,-1]),
+                (float(kospi.iloc[-1,-1]) - float(kospi.iloc[-2,-1]))/float(kospi.iloc[-2,-1]),
+                (float(kosdaq.iloc[-1,-1]) - float(kosdaq.iloc[-2,-1]))/float(kosdaq.iloc[-2,-1])]
 
     # 플롯 생성
     fig = go.Figure()
@@ -1058,53 +1260,24 @@ with col1:
             value=value,
             number={'suffix': " "},
             delta={'reference': value, 'relative': True, 'valueformat': '.2%'},
-            title={'text': f"{label}<br><span style='font-size:0.8em;color:gray'>{date} / 변동: {change}</span>"},
+            title={'text': f"{label}<br><span style='font-size:0.8em;color:gray'>{date} / 변동: {change:.2%}</span>"},
             domain={'row': i // 2, 'column': i % 2}
         ))
 
     # 그리드 레이아웃 설정
     fig.update_layout(
-        grid={'rows': 2, 'columns': 2, 'pattern': "independent"},
+        grid={'rows': 4, 'columns': 2, 'pattern': "independent"},
         height=600,
-        margin=dict(l=20, r=20, t=30, b=30)
+        margin=dict(l=20, r=20, t=100, b=30)
     )
 
     st.plotly_chart(fig, use_container_width=True)
 
 
-
-
-
 with col1:
-    ### KOSPI 100개기업 시총순위별로 사각형크기 나누고 주가와 당일 등락률표시
 
-    # 크롤링
-    kospi100 = fdr.StockListing('KOSPI')
+    # Streamlit 앱 제목
+    st.title("News Data Viewer")
 
-    # 시가총액으로 정렬하고 상위 100개 선택
-    kospi100 = kospi100.sort_values(by='Marcap', ascending=False).head(100)
-
-    # 섹터 열 추가, 업종명만 엑셀파일 참고라 코스피에 대규모상장만 안하면 교체필요 없음
-    sector_df = pd.read_excel("20240514_업종분류표.xlsx")
-
-    sector_df.rename(columns={'종목코드':'Code'}, inplace=True)
-    kospi100_df = pd.merge(kospi100, sector_df, on='Code')
-    kospi100_df = pd.concat([kospi100_df.iloc[:,1:17], kospi100_df.iloc[:,19:20]],axis=1)
-    kospi100_df.rename(columns={'업종명':'Sector'}, inplace=True)
-
-    # 시가총액을 숫자형으로 변환
-    kospi100_df['Marcap'] = kospi100_df['Marcap'].astype(float)
-
-    # 함수 정의: 음수는 그대로, 양수는 +와 % 추가
-    kospi100_df['ChagesRatio'] = np.where(kospi100_df['ChagesRatio']<0,
-                                    kospi100_df['ChagesRatio'].astype(str) + "%",
-                                    "+" + kospi100_df['ChagesRatio'].astype(str) + "%")
-
-    # 섹터별로 데이터를 그룹화
-    grouped = kospi100_df.groupby('Sector').sum()
-
-    fig = px.treemap(kospi100_df, path=['Sector', 'Name', 'ChagesRatio'], values='Marcap',
-                    color='Sector', hover_data=['Marcap'],
-                    color_continuous_scale='Viridis', title="KOSPI Market Capitalization")
-    st.plotly_chart(fig, use_container_width=True)
-
+    # JSON 데이터 표시
+    st.json(jsonFile) 
