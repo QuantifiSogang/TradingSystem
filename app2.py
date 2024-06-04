@@ -63,11 +63,12 @@ tickers = {
     'QQQ ETF' : 'QQQ'
 }
 
-stg = ['Triple barrier', 'Moving Average Strategy','RSI Strategy']
+stg = ['Triple barrier', 'Moving Average Strategy']
 
 col1, col2 = st.columns([5, 2])
 
 with col2:
+    
     ticker = st.selectbox('Pick up your security :', tickers.keys())
     strategy = st.selectbox('Pick up your strategy :', stg)
     data = load_data(tickers[ticker])
@@ -79,6 +80,7 @@ with col2:
         lower_barrier = st.number_input('Lower barrier', min_value=0.0, max_value=5.0, step=0.25, value=1.0)
         vert_barrier = st.number_input('Vertical barrier', min_value=0, max_value=120, step=1, value=7)
 
+        # Meta Labeling // primary model
         X_train, X_test, y_train, y_test, today = pipeline(
             tickers[ticker],
             start_date,
@@ -89,8 +91,7 @@ with col2:
             min_ret * 0.01
         )
 
-        # Machine Learning
-
+        # Machine Learning // secondary model
         forest = RandomForestClassifier(
             criterion='entropy',
             class_weight='balanced_subsample',
@@ -100,10 +101,13 @@ with col2:
             oob_score=True
         )
 
+        # tp만을 가진 메타데이터를 활용하여   
+        # ~2019년까지 train -> 2020년부터 test 
         fit = forest.fit(X = X_train, y = y_train)
 
-        y_prob = forest.predict_proba(X_test)[:, 1]
-        y_pred = forest.predict(X_test)
+        # 2020년부터 train한 것을 가지고 
+        y_prob = forest.predict_proba(X_test)[:, 1] # 1. 즉, 매수신호가 나올확률
+        y_pred = forest.predict(X_test) # 0과 1만
         fpr, tpr, thresholds = roc_curve(y_test, y_prob)
         accuracy = accuracy_score(y_test, y_pred)
 
@@ -133,8 +137,11 @@ with col2:
         st.plotly_chart(signal_fig, use_container_width=True)
 
     elif strategy == 'Moving Average Strategy' :
+        
         short_window = st.number_input('Short Window', min_value=1, max_value=60, step=1, value=5)
         long_window = st.number_input('Long Window', min_value=1, max_value=252, step=1, value=20)
+        
+        # Meta Labeling // primary model
         X_train, X_test, y_train, y_test, today = pipeline_moving_average(
             tickers[ticker],
             start_date,
@@ -143,8 +150,8 @@ with col2:
             long_window,
             min_ret * 0.01
         )
-        # Machine Learning
 
+        # Machine Learning // secondary model
         forest = RandomForestClassifier(
             criterion='entropy',
             class_weight='balanced_subsample',
@@ -185,6 +192,10 @@ with col2:
         )
 
         st.plotly_chart(signal_fig, use_container_width=True)
+
+
+
+    ## bull, bear 시각화 ##
 
     hmm = yf.download(ticker, start=start_date, end=end_date)
     features = ['^VIX', tickers[ticker]]
@@ -301,6 +312,10 @@ with col2:
 
     st.plotly_chart(fig, use_container_width=True)
 
+
+
+################ Visualization ###############################3
+
 data['MA20'] = data['Close'].rolling(window=20).mean()
 data['MA60'] = data['Close'].rolling(window=60).mean()
 
@@ -322,7 +337,6 @@ recent_data = data.iloc[-60:]
 price_range = [recent_data['Low'].min(), recent_data['High'].max()]
 volume_range = [0, recent_data['Volume'].max() * 2]
 
-################ Visualization ################
 
 # Create the figure
 fig = make_subplots(rows=3, cols=1, shared_xaxes=True, row_heights=[0.6, 0.2, 0.2], vertical_spacing=0.03)
@@ -385,11 +399,11 @@ fig.update_yaxes(range=price_range, row=1, col=1)
 fig.update_yaxes(range=volume_range, row=2, col=1)
 fig.update_yaxes(fixedrange=False, row=1, col=1)
 
-
-####################### 주식차트와 종목, 전략설정 아래부분 ###########################
-
 with col1:
     st.plotly_chart(fig, use_container_width=True)
+
+
+####################### 주식차트와 종목, 전략설정 아래부분 ###########################
 
 st.subheader('Additional Information')
 
@@ -492,7 +506,7 @@ with col1 :
 with col2:
 
 
-    st.title('전략사전: 주식 투자 기술적 분석 전략')
+    st.title('전략사전: 기술적분석')
 
     # 전략 목록
     strategies = {
@@ -504,13 +518,13 @@ with col2:
             시간 제한 (Time Barrier): 일정 시간이 지났을 때\n
             예시\n
             애플 주식을 100달러에 샀다고 가정해봅시다.\n
-            상한성 20%, 하한선 20%, 시간제한 7일이라고 하였을 떄\n
+            상한선 20%, 하한선 20%, 시간제한 7일이라고 하였을 떄\n
             상한선: 애플 주식이 120달러가 되면 (20% 상승) 주식을 팝니다.\n
             하한선: 애플 주식이 80달러가 되면 (20% 하락) 주식을 팝니다.\n
             시간 제한: 주식을 산 후 7일이 지나면 주식을 팝니다.\n
             이 전략은 위험 관리를 강화하고, 기대 수익을 극대화하는 데 도움을 줍니다.
             """,
-            "image": "images/0*XrMZ6tBERWex91jN.webp"
+            "image": "images/0XrMZ6tBERWex91jN.webp"
         },
         "Moving Average Strategy": {
             "description": """
@@ -520,21 +534,6 @@ with col2:
             """,
             "image": "images/639aaf3c2d96d116ed0818215f94f337.jpg"
         },
-        "RSI Strategy": {
-            "description": """
-            RSI 지표는 주식이 과매수 상태인지 과매도 상태인지를 알려줍니다:\n
-            과매수 상태 (Overbought): RSI 값이 70 이상일 때, 주식이 너무 많이 올라서 곧 떨어질 가능성이 높습니다.\n
-            과매도 상태 (Oversold): RSI 값이 30 이하일 때, 주식이 너무 많이 떨어져서 곧 오를 가능성이 높습니다.
-            RSI 전략은 주식의 매수와 매도 시점을 다음과 같이 결정합니다:\n
-            매수 시점: RSI 값이 30 이하로 떨어질 때, 주식이 과매도 상태라고 판단하여 주식을 삽니다.\n
-            매도 시점: RSI 값이 70 이상으로 올라갈 때, 주식이 과매수 상태라고 판단하여 주식을 팝니다.\n
-            예시\n
-            애플 주식의 RSI 값을 계산해본다고 가정해봅시다.\n
-            RSI 값이 30 이하로 떨어짐: 주식이 너무 많이 떨어져서 이제 곧 오를 가능성이 높다고 판단하여 주식을 매수합니다.\n
-            RSI 값이 70 이상으로 올라감: 주식이 너무 많이 올라서 이제 곧 떨어질 가능성이 높다고 판단하여 주식을 매도합니다.
-            """,
-            "image": "images/68a2b4d351474b06ad3f8162c7d85f3f.png"
-        }
     }
 
     # 사용자 입력을 통한 전략 선택
@@ -928,7 +927,10 @@ with col2 :
 
     news_list = DataFrame_list(jsonFile)
     keywords = analyze_keywords(news_list)
-
+    # 검색어는 제외
+    for tuple in keywords:
+        if srcText in tuple:
+            keywords.remove(tuple)
     wordcloud_display(keywords) 
 
 with col1:

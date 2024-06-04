@@ -133,6 +133,7 @@ def pipeline(
 
     triple_barrier_events['side'] = labels['bin']
 
+    # 트리플배리어 이벤트와 종가데이터를 이용하여 예측(tp+fp)중 tp만을 메타데이터로 추출함.
     meta_labels = meta_labeling(
         triple_barrier_events,  # with side labels
         data['Close']
@@ -141,6 +142,7 @@ def pipeline(
     data['side'] = triple_barrier_events['side'].copy()
     data['label'] = meta_labels['bin'].copy()
 
+    # 불필요한 데이터 제거
     data.drop(['Open', 'High', 'Low', 'Close', 'Adj Close', 'Volume'], axis=1, inplace=True)
     data.dropna(inplace=True)
 
@@ -148,6 +150,7 @@ def pipeline(
     X = matrix.drop(['side', 'label'], axis=1)
     y = matrix['label']
 
+    # 위 tp만을 가진 메타데이터를 train과 test의 데이터셋으로 구분하고 반환
     X_train, X_test = X.loc[:'2019'], X.loc['2020':]
     y_train, y_test = y.loc[:'2019'], y.loc['2020':]
 
@@ -157,6 +160,7 @@ def load_data(ticker, start, end):
     data = yf.download(ticker, start=start, end=end)
     data['Returns'] = data['Adj Close'].pct_change()
     return data
+
 
 # Moving Average Strategy
 def moving_average_strategy(data, short_window, long_window):
