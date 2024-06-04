@@ -916,6 +916,164 @@ with col2 :
 
     wordcloud_display(keywords) 
 
+with col1:
+
+    ## CD(91일)
+    def get_CD_interest_rate(api_key, start_date, end_date):
+        
+        url = 'http://ecos.bok.or.kr/api/StatisticSearch/' + api_key + '/json/kr/1/100/[STAT_CODE]/D/YYYYMMDD/YYYYMMDD/[SUB_CODE]'
+        
+        url = url.replace("[STAT_CODE]", "817Y002")
+        url = url.replace("YYYYMMDD/YYYYMMDD", start_date + "/" + end_date)
+        url = url.replace("[SUB_CODE]", "010502000")
+
+        response = requests.get(url)
+        result = response.json()
+
+        list_total_count=(int)(result['StatisticSearch']['list_total_count'])
+        list_count=(int)(list_total_count/100) + 1
+
+        rows=[]
+        for i in range(0,list_count):
+            
+            start = str(i * 100 + 1)
+            end = str((i + 1) * 100)
+            
+            url = "http://ecos.bok.or.kr/api/StatisticSearch/" + api_key + "/json/kr/" + start + "/" + end + "/" + "[STAT_CODE]/D/YYYYMMDD/YYYYMMDD/[SUB_CODE]"
+        
+            url = url.replace("[STAT_CODE]", "817Y002")
+            url = url.replace("YYYYMMDD/YYYYMMDD", start_date + "/" + end_date)
+            url = url.replace("[SUB_CODE]", "010502000")
+
+            response = requests.get(url)
+            data = response.json()
+            
+            # API로부터 받은 데이터를 파싱하여 기준금리를 추출
+            rows += data['StatisticSearch']['row']
+        
+        CD_rates = pd.DataFrame(rows)
+
+        return CD_rates
+
+    ## 국고채3년
+    def get_Korea_interest_rate(api_key, start_date, end_date):
+        
+        url = 'http://ecos.bok.or.kr/api/StatisticSearch/' + api_key + '/json/kr/1/100/[STAT_CODE]/D/YYYYMMDD/YYYYMMDD/[SUB_CODE]'
+        
+        url = url.replace("[STAT_CODE]", "817Y002")
+        url = url.replace("YYYYMMDD/YYYYMMDD", start_date + "/" + end_date)
+        url = url.replace("[SUB_CODE]", "010200000")
+
+        response = requests.get(url)
+        result = response.json()
+
+        list_total_count=(int)(result['StatisticSearch']['list_total_count'])
+        list_count=(int)(list_total_count/100) + 1
+
+        rows=[]
+        for i in range(0,list_count):
+            
+            start = str(i * 100 + 1)
+            end = str((i + 1) * 100)
+            
+            url = "http://ecos.bok.or.kr/api/StatisticSearch/" + api_key + "/json/kr/" + start + "/" + end + "/" + "[STAT_CODE]/D/YYYYMMDD/YYYYMMDD/[SUB_CODE]"
+        
+            url = url.replace("[STAT_CODE]", "817Y002")
+            url = url.replace("YYYYMMDD/YYYYMMDD", start_date + "/" + end_date)
+            url = url.replace("[SUB_CODE]", "010200000")
+
+            response = requests.get(url)
+            data = response.json()
+            
+            rows += data['StatisticSearch']['row']
+        
+        Korea_rates = pd.DataFrame(rows)
+
+        return Korea_rates
+
+    ## 회사채3년(AA-)
+    def get_Company_interest_rate(api_key, start_date, end_date):
+        
+        url = 'http://ecos.bok.or.kr/api/StatisticSearch/' + api_key + '/json/kr/1/100/[STAT_CODE]/D/YYYYMMDD/YYYYMMDD/[SUB_CODE]'
+        
+        url = url.replace("[STAT_CODE]", "817Y002")
+        url = url.replace("YYYYMMDD/YYYYMMDD", start_date + "/" + end_date)
+        url = url.replace("[SUB_CODE]", "010300000")
+
+        response = requests.get(url)
+        result = response.json()
+
+        list_total_count=(int)(result['StatisticSearch']['list_total_count'])
+        list_count=(int)(list_total_count/100) + 1
+
+        rows=[]
+        for i in range(0,list_count):
+            
+            start = str(i * 100 + 1)
+            end = str((i + 1) * 100)
+            
+            url = "http://ecos.bok.or.kr/api/StatisticSearch/" + api_key + "/json/kr/" + start + "/" + end + "/" + "[STAT_CODE]/D/YYYYMMDD/YYYYMMDD/[SUB_CODE]"
+        
+            url = url.replace("[STAT_CODE]", "817Y002")
+            url = url.replace("YYYYMMDD/YYYYMMDD", start_date + "/" + end_date)
+            url = url.replace("[SUB_CODE]", "010300000")
+
+            response = requests.get(url)
+            data = response.json()
+            
+            rows += data['StatisticSearch']['row']
+        
+        Company_rates = pd.DataFrame(rows)
+
+        return Company_rates
+
+
+    ### 보안유의!!
+    api_key = 'C7GJE1C09ADYZNF4MH30'
+
+    # 금리
+    rate_start_date = "20240101"
+    rate_end_date = "20240531"
+    CD_rates = get_CD_interest_rate(api_key, rate_start_date, rate_end_date)
+    Korea_rates = get_Korea_interest_rate(api_key, rate_start_date, rate_end_date)
+    Company_rates = get_Company_interest_rate(api_key, rate_start_date, rate_end_date)
+
+    ## 금리
+    labels = [CD_rates.iloc[0,3], Korea_rates.iloc[0,3], Company_rates.iloc[0,3]]
+    values = [float(CD_rates.iloc[-1,-1]), float(Korea_rates.iloc[-1,-1]), float(Company_rates.iloc[-1,-1])]
+
+    # 조회한 마지막날짜를 출력하도록 설계 --> datetime.today로 오늘날짜를 출력하도록 할수도 있음
+    dates = [rate_end_date[0:4] + '-' + rate_end_date[4:6] + '-' + rate_end_date[6:]] * 3
+    changes = [(float(CD_rates.iloc[-1,-1]) - float(CD_rates.iloc[-2,-1]))/float(CD_rates.iloc[-2,-1]),
+                (float(Korea_rates.iloc[-1,-1]) - float(Korea_rates.iloc[-2,-1]))/float(Korea_rates.iloc[-2,-1]),
+                (float(Company_rates.iloc[-1,-1]) - float(Company_rates.iloc[-2,-1]))/float(Company_rates.iloc[-2,-1])]
+
+    # 플롯 생성
+    fig = go.Figure()
+
+    # 각 지표를 별도의 텍스트 박스로 추가
+    for i, (label, value, date, change) in enumerate(zip(labels, values, dates, changes)):
+        fig.add_trace(go.Indicator(
+            mode="number+delta",
+            value=value,
+            number={'suffix': " "},
+            delta={'reference': value, 'relative': True, 'valueformat': '.2%'},
+            title={'text': f"{label}<br><span style='font-size:0.8em;color:gray'>{date} / 변동: {change}</span>"},
+            domain={'row': i // 2, 'column': i % 2}
+        ))
+
+    # 그리드 레이아웃 설정
+    fig.update_layout(
+        grid={'rows': 2, 'columns': 2, 'pattern': "independent"},
+        height=600,
+        margin=dict(l=20, r=20, t=30, b=30)
+    )
+
+    st.plotly_chart(fig, use_container_width=True)
+
+
+
+
 
 with col1:
     ### KOSPI 100개기업 시총순위별로 사각형크기 나누고 주가와 당일 등락률표시
