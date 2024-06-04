@@ -62,6 +62,7 @@ tickers = {
     'SPY ETF' : 'SPY',
     'QQQ ETF' : 'QQQ'
 }
+
 stg = ['Triple barrier', 'Moving Average Strategy','RSI Strategy']
 
 col1, col2 = st.columns([5, 2])
@@ -78,7 +79,7 @@ with col2:
         lower_barrier = st.number_input('Lower barrier', min_value=0.0, max_value=5.0, step=0.25, value=1.0)
         vert_barrier = st.number_input('Vertical barrier', min_value=0, max_value=120, step=1, value=7)
 
-        X_train, X_test, y_train, y_test = pipeline(
+        X_train, X_test, y_train, y_test, today = pipeline(
             tickers[ticker],
             start_date,
             end_date,
@@ -106,13 +107,16 @@ with col2:
         fpr, tpr, thresholds = roc_curve(y_test, y_prob)
         accuracy = accuracy_score(y_test, y_pred)
 
+        today_signal = forest.predict(today.drop(['label', 'side'], axis=1))
+        y_prob_today = forest.predict_proba(today.drop(['label', 'side'], axis=1))[:, 1]
+
         st.header("Machine Learning Signal")
-        signal = 'Buy' if y_prob[-1] > 0.5 else 'Sell'
+        signal = 'Strong' if y_prob_today[-1] > 0.5 else 'Weak'
         st.write(signal)
 
         signal_fig = go.Figure(go.Indicator(
             mode = "gauge+number",
-            value = y_prob[-1] * 100,
+            value = y_prob_today[-1] * 100,
             title={'text': f"Date: {pd.to_datetime('today')}"},
             gauge={
                 'axis': {'range': [0, 100]},
@@ -131,7 +135,7 @@ with col2:
     elif strategy == 'Moving Average Strategy' :
         short_window = st.number_input('Short Window', min_value=1, max_value=60, step=1, value=5)
         long_window = st.number_input('Long Window', min_value=1, max_value=252, step=1, value=20)
-        X_train, X_test, y_train, y_test = pipeline_moving_average(
+        X_train, X_test, y_train, y_test, today = pipeline_moving_average(
             tickers[ticker],
             start_date,
             end_date,
@@ -157,13 +161,16 @@ with col2:
         fpr, tpr, thresholds = roc_curve(y_test, y_prob)
         accuracy = accuracy_score(y_test, y_pred)
 
+        today_signal = forest.predict(today)
+        y_prob_today = forest.predict_proba(today)[:, 1]
+
         st.header("Machine Learning Signal")
-        signal = 'Buy' if y_prob[-1] > 0.5 else 'Sell'
+        signal = 'Strong' if y_prob_today[-1] > 0.5 else 'Weak'
         st.write(signal)
 
         signal_fig = go.Figure(go.Indicator(
             mode="gauge+number",
-            value=y_prob[-1] * 100,
+            value=y_prob_today[-1] * 100,
             title={'text': f"Date: {pd.to_datetime('today')}"},
             gauge={
                 'axis': {'range': [0, 100]},
@@ -205,9 +212,22 @@ with col2:
         columns=[f'State_{i}' for i in range(n_states)]
     )
 
-    bull_probability = round(hmm_pred_prob.iloc[-1]['State_0'] * 100, 2)
-    neutral_probability = round(hmm_pred_prob.iloc[-1]['State_1'] * 100, 2)
-    bear_probability = round(hmm_pred_prob.iloc[-1]['State_2'] * 100, 2)
+    if tickers[ticker] in ['NVDA','MSFT','IBM','AMZN','XOM'] :
+        bull_probability = round(hmm_pred_prob.iloc[-1]['State_2'] * 100, 2)
+        neutral_probability = round(hmm_pred_prob.iloc[-1]['State_1'] * 100, 2)
+        bear_probability = round(hmm_pred_prob.iloc[-1]['State_0'] * 100, 2)
+    elif tickers[ticker] in ['GOOGL','NFLX'] :
+        bull_probability = round(hmm_pred_prob.iloc[-1]['State_0'] * 100, 2)
+        neutral_probability = round(hmm_pred_prob.iloc[-1]['State_1'] * 100, 2)
+        bear_probability = round(hmm_pred_prob.iloc[-1]['State_2'] * 100, 2)
+    elif tickers[ticker] in ['AAPL','SPY','QQQ'] :
+        bull_probability = round(hmm_pred_prob.iloc[-1]['State_1'] * 100, 2)
+        neutral_probability = round(hmm_pred_prob.iloc[-1]['State_2'] * 100, 2)
+        bear_probability = round(hmm_pred_prob.iloc[-1]['State_0'] * 100, 2)
+    else :
+        bull_probability = round(hmm_pred_prob.iloc[-1]['State_2'] * 100, 2)
+        neutral_probability = round(hmm_pred_prob.iloc[-1]['State_1'] * 100, 2)
+        bear_probability = round(hmm_pred_prob.iloc[-1]['State_0'] * 100, 2)
 
     fig = go.Figure()
 
@@ -378,7 +398,7 @@ col1, col2 = st.columns([1, 1])
 with col1 :
 
     nx_returns = pd.read_parquet('data/SP500_returns.parquet')
-    nx_stock = yf.download(tickers[ticker], start = '2020-01-01', end = '2024-06-01')['Adj Close'].pct_change().dropna()
+    nx_stock = yf.download(tickers[ticker], start = '2020-01-01', end = pd.to_datetime('today'))['Adj Close'].pct_change().dropna()
 
     corr = nx_returns.corrwith(nx_stock)
 

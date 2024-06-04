@@ -151,7 +151,7 @@ def pipeline(
     X_train, X_test = X.loc[:'2019'], X.loc['2020':]
     y_train, y_test = y.loc[:'2019'], y.loc['2020':]
 
-    return X_train, X_test, y_train, y_test
+    return X_train, X_test, y_train, y_test, data.iloc[-1:]
 
 def load_data(ticker, start, end):
     data = yf.download(ticker, start=start, end=end)
@@ -253,16 +253,19 @@ def pipeline_moving_average(
 
     data.dropna(inplace=True)
 
-    data = prepare_meta_labels_ma(data[data['Signal'] == 1], threshold = min_ret)
+    today = data.drop(
+        ['Open', 'High', 'Low', 'Close', 'Adj Close', 'Volume', 'Short_MA', 'Long_MA', 'Signal', 'Position', 'Returns'], axis=1).iloc[-1:]
 
-    X = data.drop(
+    matrix = prepare_meta_labels_ma(data[data['Signal'] == 1], threshold = min_ret)
+
+    X = matrix.drop(
         ['Open', 'High', 'Low', 'Close', 'Adj Close', 'Volume', 'Short_MA', 'Long_MA', 'Signal', 'Position', 'Returns',
          'Meta_Label'], axis=1)
-    y = data['Meta_Label']
+    y = matrix['Meta_Label']
 
     X_train = X[:'2019']
     X_test = X['2020':]
     y_train = y[:'2019']
     y_test = y['2020':]
 
-    return X_train, X_test, y_train, y_test
+    return X_train, X_test, y_train, y_test, today
