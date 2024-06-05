@@ -72,7 +72,7 @@ with col2:
     ticker = st.selectbox('Pick up your security :', tickers.keys())
     strategy = st.selectbox('Pick up your strategy :', stg)
     data = load_data(tickers[ticker])
-    min_ret = st.number_input('Minimum return rate', min_value = 0.0, max_value = 5.0, step = 0.25, value = 3.0)
+    min_ret = st.number_input('Minimum return rate', min_value = 0.0, max_value = 5.0, step = 0.25, value = 1.0)
 
     if strategy == 'Triple barrier' :
 
@@ -80,7 +80,7 @@ with col2:
         lower_barrier = st.number_input('Lower barrier', min_value=0.0, max_value=5.0, step=0.25, value=1.0)
         vert_barrier = st.number_input('Vertical barrier', min_value=0, max_value=120, step=1, value=7)
 
-        # Meta Labeling // primary model
+        # Meta Labeling // primary model --> 메타데이터 반환 및 today는 오늘의 데이터
         X_train, X_test, y_train, y_test, today = pipeline(
             tickers[ticker],
             start_date,
@@ -102,7 +102,7 @@ with col2:
         )
 
         # tp만을 가진 메타데이터를 활용하여   
-        # ~2019년까지 train -> 2020년부터 test 
+        # ~2019년까지 데이터로 모델학습 -> 2020년부터 test 
         fit = forest.fit(X = X_train, y = y_train)
 
         # 2020년부터 train한 것을 가지고 
@@ -110,6 +110,7 @@ with col2:
         y_pred = forest.predict(X_test) # 0과 1만
         fpr, tpr, thresholds = roc_curve(y_test, y_prob)
         accuracy = accuracy_score(y_test, y_pred)
+        print(accuracy)
 
         today_signal = forest.predict(today.drop(['label', 'side'], axis=1))
         y_prob_today = forest.predict_proba(today.drop(['label', 'side'], axis=1))[:, 1]
@@ -316,8 +317,8 @@ with col2:
 
 ################ Visualization ###############################3
 
+data['MA5'] = data['Close'].rolling(window=5).mean()
 data['MA20'] = data['Close'].rolling(window=20).mean()
-data['MA60'] = data['Close'].rolling(window=60).mean()
 
 def calculate_psy(data, window=14):
     diff = data['Close'].diff()
@@ -350,14 +351,14 @@ fig.add_trace(go.Candlestick(x=data['Date'],
                              name='Candlestick'), row=1, col=1)
 # Add moving averages
 fig.add_trace(go.Scatter(x=data['Date'],
+                         y=data['MA5'],
+                         mode='lines',
+                         name='MA5',
+                         line=dict(color='orange')), row=1, col=1)
+fig.add_trace(go.Scatter(x=data['Date'],
                          y=data['MA20'],
                          mode='lines',
                          name='MA20',
-                         line=dict(color='orange')), row=1, col=1)
-fig.add_trace(go.Scatter(x=data['Date'],
-                         y=data['MA60'],
-                         mode='lines',
-                         name='MA60',
                          line=dict(color='darkorange')), row=1, col=1)
 # Add Bollinger Bands
 fig.add_trace(go.Scatter(x=data['Date'],
@@ -530,6 +531,7 @@ with col2:
             "description": """
             이중 이동 평균 전략은 주식 가격의 단기 추세와 장기 추세를 비교하여 매수와 매도 신호를 생성하는 간단한 트레이딩 전략입니다.\n
             이 전략은 주가가 단기 이동 평균선이 장기 이동 평균선을 상향 돌파할 때 매수하고, 단기 이동 평균선이 장기 이동 평균선을 하향 돌파할 때 매도합니다.\n
+            예를 들어 5일선이 20일선을 돌파하면 매수, 5일선이 20일선 밑으로 내려가면 매도입니다.\n
             이 전략은 추세를 따르는 트레이딩에 매우 유용합니다.
             """,
             "image": "images/639aaf3c2d96d116ed0818215f94f337.jpg"

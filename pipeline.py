@@ -126,14 +126,16 @@ def pipeline(
     )
     triple_barrier_events.head()
 
+    ## 'side' 매수매도신호정보가 없기 때문에 라벨링 결과는 주로 거래 실행의 타이밍과 방향성이 결정되지 않은 채로 생성(각 이벤트의 초기 라벨(진입 시점)을 생성)
     labels = meta_labeling(
         triple_barrier_events,
         data['Close']
     )
 
+    # 매수매도신호정보 side에 저장
     triple_barrier_events['side'] = labels['bin']
 
-    # 트리플배리어 이벤트와 종가데이터를 이용하여 예측(tp+fp)중 tp만을 메타데이터로 추출함.
+    # 이번에는 각 이벤트에 대한 매수 혹은 매도의 방향성이 포함된 상태로, 실제 모델 학습에 사용할 수 있는 더욱 정교한 메타 데이터를 생성(이 라벨을 기반으로 실제 거래 방향(매수 혹은 매도)을 결정)
     meta_labels = meta_labeling(
         triple_barrier_events,  # with side labels
         data['Close']
@@ -185,6 +187,7 @@ def prepare_meta_labels_ma(data, threshold=0.02):
             data.loc[signal_indices[i], 'Meta_Label'] = 1 if data.loc[next_day_index, 'Returns'] > threshold else 0
 
     return data.dropna(subset=['Meta_Label'])
+
 
 def pipeline_moving_average(
         ticker,
@@ -260,7 +263,7 @@ def pipeline_moving_average(
     today = data.drop(
         ['Open', 'High', 'Low', 'Close', 'Adj Close', 'Volume', 'Short_MA', 'Long_MA', 'Signal', 'Position', 'Returns'], axis=1).iloc[-1:]
 
-    matrix = prepare_meta_labels_ma(data[data['Signal'] == 1], threshold = min_ret)
+    matrix = prepare_meta_labels_ma(data[data['Signal'] != 0], threshold=min_ret)
 
     X = matrix.drop(
         ['Open', 'High', 'Low', 'Close', 'Adj Close', 'Volume', 'Short_MA', 'Long_MA', 'Signal', 'Position', 'Returns',
